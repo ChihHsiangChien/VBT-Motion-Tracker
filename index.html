@@ -145,8 +145,37 @@ function renderHistory() {
     const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
     const container = document.getElementById('historyList');
     container.innerHTML = history.map((set, index) => `<div class="history-item"><div style="display:flex; justify-content:space-between;"><div style="flex:1;" onclick="toggleHistoryCard(${index})"><div style="font-weight:900; color:var(--primary); font-size:0.8rem;">${set.date}</div><div style="font-weight:bold; font-size:0.9rem; margin:3px 0;">${set.note || '無備註'}</div><div>${set.reps} 下 | 平均 ${(set.data.reduce((a,b)=>a+b.avg,0)/set.reps).toFixed(2)} m/s</div></div><button onclick="deleteHistory(event, ${index})" style="background:none; color:red; font-size:0.8rem; padding:10px;">刪除</button></div><div id="detail-${index}" style="display:none; height:150px; margin-top:10px;"><canvas id="chart-${index}"></canvas></div></div>`).join('');
-    history.forEach((set, index) => setTimeout(() => { const c = document.getElementById(`chart-${index}`); if(c) new Chart(c.getContext('2d'), { type: 'line', data: { labels: set.data.map((_,i)=>i+1), datasets: [{ data: set.data.map(d=>d.avg), borderColor: '#008000', fill: false }, { data: set.data.map(d=>d.peak), borderColor: '#0000FF', fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } }); }, 100));
-}
+    history.forEach((set, index) => setTimeout(() => {
+        const c = document.getElementById(`chart-${index}`);
+        if(c) {
+            // 強制設定畫布父容器背景為白色
+            c.parentElement.style.background = "#FFFFFF";
+            c.parentElement.style.borderRadius = "8px";
+            c.parentElement.style.padding = "5px";
+
+            new Chart(c.getContext('2d'), { 
+                type: 'line', 
+                data: { 
+                    labels: set.data.map((_,i)=>i+1), 
+                    datasets: [
+                        { label: '平均', data: set.data.map(d=>d.avg), borderColor: '#008000', borderWidth: 2, fill: false }, 
+                        { label: '峰值', data: set.data.map(d=>d.peak), borderColor: '#0000FF', borderWidth: 2, fill: false }
+                    ] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: '#EEE' }, ticks: { color: '#333' } },
+                        x: { grid: { display: false }, ticks: { color: '#333' } }
+                    },
+                    plugins: { legend: { display: false } } 
+                } 
+            });
+        }
+    }, 100));
+    }
+
 window.toggleHistoryCard = (i) => { const d = document.getElementById(`detail-${i}`); d.style.display = d.style.display === 'none' ? 'block' : 'none'; };
 window.deleteHistory = (e, i) => { e.stopPropagation(); if(confirm('刪除？')) { const h = JSON.parse(localStorage.getItem('vbt_history') || '[]'); h.splice(i, 1); localStorage.setItem('vbt_history', JSON.stringify(h)); renderHistory(); } };
 
