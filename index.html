@@ -21,9 +21,19 @@
   .config-row label { font-size: 0.8rem; color: #CCC; }
   .config-row input, .config-row select { background: #000; color: #FFF; border: 1px solid #555; padding: 5px; border-radius: 4px; width: 70px; text-align: center; }
 
-  /* 調整指引區塊 */
-  .help-box { background: #222; padding: 10px; border-radius: 8px; font-size: 0.75rem; color: #AAA; margin-top: 15px; line-height: 1.5; border-left: 3px solid var(--info); }
-  .help-box b { color: var(--info); }
+  /* 調整指引區塊 - 極致高對比黃底黑字 */
+  .help-box { 
+    background: #FFEB3B; 
+    color: #000000; 
+    padding: 12px; 
+    border-radius: 8px; 
+    font-size: 0.85rem; 
+    margin-top: 15px; 
+    line-height: 1.6; 
+    border: 3px solid var(--primary);
+    font-weight: bold;
+  }
+  .help-box b { color: #D32F2F; font-size: 0.95rem; }
 
   .main-panel { background: var(--panel-bg); color: var(--text-dark); border-radius: 15px; padding: 20px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
   .val-mega { font-size: 4.5rem; font-weight: 900; line-height: 1; display: block; margin: 5px 0; }
