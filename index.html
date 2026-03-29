@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>VBT Pro v3.1 Stable</title>
+<title>VBT Pro v3.2 Wave Persistence</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -20,7 +20,6 @@
   .config-row label { font-size: 0.8rem; color: #CCC; }
   .config-row input, .config-row select { background: #000; color: #FFF; border: 1px solid #555; padding: 5px; border-radius: 4px; width: 75px; text-align: center; }
   .help-box { background: #FFEB3B; color: #000; padding: 12px; border-radius: 8px; font-size: 0.8rem; margin-top: 15px; line-height: 1.6; border: 2px solid var(--primary); font-weight: bold; }
-  .help-box b { color: #D32F2F; }
   .main-panel { background: var(--panel-bg); color: var(--text-dark); border-radius: 15px; padding: 20px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
   .val-mega { font-size: 4.5rem; font-weight: 900; line-height: 1; display: block; margin: 5px 0; }
   .val-sub { font-size: 2.2rem; font-weight: 900; line-height: 1; display: block; }
@@ -34,7 +33,7 @@
 </style>
 </head>
 <body>
-  <div class="header"><span class="title">VBT PRO v3.1</span><div><span id="dirIndicator" class="dir-idle">待機</span><span id="status" style="font-size:0.65rem; color:#666;">尚未連線</span></div></div>
+  <div class="header"><span class="title">VBT PRO v3.2</span><div><span id="dirIndicator" class="dir-idle">待機</span><span id="status" style="font-size:0.65rem; color:#666;">尚未連線</span></div></div>
   <div class="top-bar"><button id="connectBtn">連接感測器</button><button id="resetBtn">新組數</button><button id="configToggle">⚙️</button></div>
 
   <div id="configPanel" class="config-overlay">
@@ -47,14 +46,7 @@
     <div class="config-row"><label>結束緩衝(幀)</label><input type="number" id="cfgEnd" step="1"></div>
     <div class="config-row"><label>最低有效速(m/s)</label><input type="number" id="cfgMinV" step="0.01"></div>
     <div style="display:flex; gap:8px;"><button onclick="saveSettings()" style="background:var(--warning); color:#000; flex:1; font-size:0.8rem; padding:10px;">儲存</button><button onclick="resetSettings()" style="background:#444; color:#FFF; flex:0.6; font-size:0.8rem; padding:10px;">預設</button></div>
-    
-    <div class="help-box">
-      <b>❓ 調整建議：</b><br>
-      • <b>連續動作抓不到</b>：調低「結束緩衝」(建議 5-8)。<br>
-      • <b>漏抓啟動</b>：調低「啟動靈敏度」(建議 0.08)。<br>
-      • <b>慢速抓不到</b>：調低「最低有效速」。<br>
-      • <b>誤抓嚴重</b>：調高「啟動靈敏度」或死區。
-    </div>
+    <div class="help-box">波形圖已設定為<b>持續保留</b>，直到下一次動作啟動才會重置。</div>
   </div>
 
   <div class="main-panel">
@@ -65,6 +57,7 @@
     </div>
   </div>
 
+  <!-- 單次波形圖：現在會保留直到下次啟動 -->
   <div id="waveBox" class="chart-box"><canvas id="waveChart"></canvas></div>
   <div class="chart-box"><canvas id="trendChart"></canvas></div>
 
@@ -78,19 +71,19 @@
 
 <script>
 const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214", CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
-const DEFAULT_SETTINGS = { start: 0.10, dead: 0.07, end: 8, voiceMode: 'avg', voiceRate: 1.6, minV: 0.15, showWave: true }; // 已調優預設值
+const DEFAULT_SETTINGS = { start: 0.10, dead: 0.07, end: 8, voiceMode: 'avg', voiceRate: 1.6, minV: 0.15, showWave: true };
 let settings = {...DEFAULT_SETTINGS};
 
 function loadSettings() { const saved = localStorage.getItem('vbt_settings'); if (saved) settings = {...DEFAULT_SETTINGS, ...JSON.parse(saved)}; applyToUI(); }
 function applyToUI() { document.getElementById('cfgStart').value = settings.start; document.getElementById('cfgEnd').value = settings.end; document.getElementById('cfgVoiceMode').value = settings.voiceMode; document.getElementById('cfgVoiceRate').value = settings.voiceRate; document.getElementById('cfgMinV').value = settings.minV; document.getElementById('cfgShowWave').checked = settings.showWave; document.getElementById('waveBox').classList.toggle('hidden', !settings.showWave); }
-function saveSettings() { settings.start = parseFloat(document.getElementById('cfgStart').value); settings.end = parseInt(document.getElementById('cfgEnd').value); settings.voiceMode = document.getElementById('cfgVoiceMode').value; settings.voiceRate = parseFloat(document.getElementById('cfgVoiceRate').value); settings.minV = parseFloat(document.getElementById('cfgMinV').value); settings.showWave = document.getElementById('cfgShowWave').checked; localStorage.setItem('vbt_settings', JSON.stringify(settings)); applyToUI(); document.getElementById('configPanel').classList.remove('open'); alert('設定已更新！'); }
+function saveSettings() { settings.start = parseFloat(document.getElementById('cfgStart').value); settings.end = parseInt(document.getElementById('cfgEnd').value); settings.voiceMode = document.getElementById('cfgVoiceMode').value; settings.voiceRate = parseFloat(document.getElementById('cfgVoiceRate').value); settings.minV = parseFloat(document.getElementById('cfgMinV').value); settings.showWave = document.getElementById('cfgShowWave').checked; localStorage.setItem('vbt_settings', JSON.stringify(settings)); applyToUI(); document.getElementById('configPanel').classList.remove('open'); }
 function resetSettings() { if(confirm('還原預設？')) { settings = {...DEFAULT_SETTINGS}; applyToUI(); localStorage.setItem('vbt_settings', JSON.stringify(settings)); } }
 document.getElementById('configToggle').addEventListener('click', () => { document.getElementById('configPanel').classList.toggle('open'); });
 
 function speak(text) { if (settings.voiceMode === 'none') return; window.speechSynthesis.cancel(); const msg = new SpeechSynthesisUtterance(text); msg.lang = 'zh-TW'; msg.rate = settings.voiceRate; window.speechSynthesis.speak(msg); }
 
 const trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ label: 'Avg', data: [], borderColor: '#008000', borderWidth: 3, tension: 0.2, fill: false }, { label: 'Peak', data: [], borderColor: '#0000FF', borderWidth: 3, tension: 0.2, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false }, title: { display: true, text: '組數趨勢' } } } });
-const waveChart = new Chart(document.getElementById('waveChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#FF5200', borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(255,82,0,0.1)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false }, title: { display: true, text: '單次速度波形' } }, animation: false } });
+const waveChart = new Chart(document.getElementById('waveChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#FF5200', borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(255,82,0,0.1)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false }, title: { display: true, text: '單次速度波形 (保留中)' } }, animation: false } });
 
 let gravityVec = {x:0, y:0, z:1}, gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [], state = 0, startTime = 0, calibBuffer = [], isCalibrated = false, currentSetData = [], lowVelocityCount = 0, packetCount = 0, lastFpsTime = Date.now(), lastPacketTime = Date.now();
 
@@ -118,15 +111,21 @@ function updateVBT(x, y, z) {
 
     if (state === 0 && netAccel > settings.start) {
         state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0;
+        // 關鍵優化：下一次動作正式啟動時，才清空上一次的波形
         waveChart.data.labels = []; waveChart.data.datasets[0].data = [];
-    } else if (state === 1 && velocity > 0.08) { state = 2; } // 更靈敏的進入狀態
+        waveChart.options.plugins.title.text = "單次速度波形 (追蹤中...)";
+        waveChart.update('none');
+    } else if (state === 1 && velocity > 0.08) { state = 2; }
     else if (state === 2) {
         if (velocity > 0) {
             velocities.push(velocity); if (velocity > maxVelocity) maxVelocity = velocity; lowVelocityCount = 0;
             if (settings.showWave) { waveChart.data.labels.push(""); waveChart.data.datasets[0].data.push(velocity.toFixed(3)); waveChart.update('none'); }
         } else { lowVelocityCount++; }
-        // 連續動作優化：縮短緩衝判定
-        if ((velocity < 0.08 && velocities.length > 10 && lowVelocityCount > settings.end) || (Date.now() - startTime > 8000)) state = 3;
+        if ((velocity < 0.08 && velocities.length > 10 && lowVelocityCount > settings.end) || (Date.now() - startTime > 8000)) {
+            state = 3;
+            waveChart.options.plugins.title.text = "單次速度波形 (已保留)";
+            waveChart.update();
+        }
     } else if (state === 3) {
         let res = (velocities.length > 10 && maxVelocity > settings.minV) ? {avg: velocities.reduce((a, b) => a + b, 0) / velocities.length, peak: maxVelocity} : null;
         state = 0; velocity = 0.0; return res;
@@ -168,11 +167,10 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
         document.getElementById('connectBtn').classList.add('connected'); document.getElementById('connectBtn').innerText = '已連線';
         characteristic.addEventListener('characteristicvaluechanged', (e) => {
             let parts = new TextDecoder('utf-8').decode(e.target.value).split(',');
-            if (parts.length === 3) { let res = mystery_func(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])); if (res) addRepToUI(res); }
+            if (parts.length === 3) { let res = updateVBT(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])); if (res) addRepToUI(res); }
         });
     } catch (e) { alert(e); }
 });
-const mystery_func = updateVBT; // Alias for internal logic
 loadSettings(); renderHistory();
 </script>
 </body>
