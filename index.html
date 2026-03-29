@@ -3,96 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>VBT 高對比模式</title>
+<title>VBT 專業監控 Pro</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  :root {
-    --bg-color: #000000;
-    --panel-bg: #FFFFFF; /* 改為純白面板 */
-    --primary: #FF5200;
-    --success: #008000; /* 淺色背景下用深綠 */
-    --info: #0000FF;    /* 淺色背景下用深藍 */
-    --warning: #FF8F00;
-    --text-dark: #000000;
-    --text-light: #FFFFFF;
-  }
-
-  body { 
-    font-family: -apple-system, sans-serif; 
-    background: var(--bg-color); 
-    color: var(--text-light); 
-    margin: 0; padding: 10px;
-  }
-
+  :root { --bg-color: #000000; --panel-bg: #FFFFFF; --primary: #FF5200; --success: #008000; --info: #0000FF; --warning: #FF8F00; --text-dark: #000000; --text-light: #FFFFFF; }
+  body { font-family: -apple-system, sans-serif; background: var(--bg-color); color: var(--text-light); margin: 0; padding: 10px; }
   .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 5px; }
   .title { font-size: 1.2rem; font-weight: 900; color: var(--primary); }
-  
-  /* 核心數據卡片 - 改為白底黑字，極致對比 */
-  .main-panel { 
-    background: var(--panel-bg); 
-    color: var(--text-dark); 
-    border-radius: 15px; 
-    padding: 20px; 
-    margin-bottom: 10px;
-    box-shadow: 0 0 20px rgba(255,255,255,0.2);
-  }
-
+  .main-panel { background: var(--panel-bg); color: var(--text-dark); border-radius: 15px; padding: 20px; margin-bottom: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
   .stat-row { border-bottom: 2px solid #EEE; padding: 10px 0; }
-  .stat-row:last-child { border-bottom: none; }
-  
   .label-large { font-size: 1rem; font-weight: bold; color: #666; display: block; }
   .val-mega { font-size: 4.5rem; font-weight: 900; line-height: 1; display: block; margin: 5px 0; }
   .val-sub { font-size: 2.8rem; font-weight: 900; line-height: 1; display: block; }
-
   .dual-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
-
   .chart-container { background: #FFF; margin-top: 10px; padding: 5px; border-radius: 10px; height: 200px; }
-  
-  /* 操作按鈕 - 也要清晰 */
   button { font-size: 1.1rem; padding: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: 900; }
-  #connectBtn { background: var(--primary); color: white; width: 100%; margin-bottom: 10px; border: 3px solid white; font-size: 1.2rem; }
+  #connectBtn { background: var(--primary); color: white; width: 100%; margin-bottom: 10px; border: 3px solid white; }
   #connectBtn.connected { background: #FFFFFF; color: #00C853; border: 3px solid #00C853; }
-  
   .action-box { background: #222; padding: 15px; border-radius: 12px; margin-top: 15px; }
   #setNote { width: 100%; padding: 12px; font-size: 1rem; border-radius: 8px; border: none; margin-bottom: 10px; }
-  
-  .history-item { background: #FFF; color: #000; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 8px solid var(--primary); }
+  .history-item { background: #FFF; color: #000; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 8px solid var(--primary); text-align: left; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <span class="title">VBT PRO</span>
-    <button id="resetBtn" style="background:#FFF; color:#000; font-size:0.8rem; padding:5px 10px;">重置新組</button>
-  </div>
-
+  <div class="header"><span class="title">VBT PRO v2.0</span><button id="resetBtn" style="background:#FFF; color:#000; font-size:0.8rem; padding:5px 10px;">重置新組</button></div>
   <button id="connectBtn">連接感測器</button>
   <div id="status" style="font-size:0.7rem; color:#888;">尚未連線</div>
 
-  <!-- 白底黑字核心顯示區 -->
   <div class="main-panel">
-    <div class="stat-row">
-      <span class="label-large">次數 (REPS)</span>
-      <span id="repsText" class="val-mega" style="color: var(--text-dark);">0</span>
-    </div>
-    
+    <div class="stat-row"><span class="label-large">次數 (REPS)</span><span id="repsText" class="val-mega">0</span></div>
     <div class="dual-cols">
-      <div>
-        <span class="label-large">平均速度</span>
-        <span id="avgText" class="val-sub" style="color: var(--success);">--</span>
-        <span style="font-size:0.8rem;">m/s</span>
-      </div>
-      <div>
-        <span class="label-large">峰值速度</span>
-        <span id="peakText" class="val-sub" style="color: var(--info);">--</span>
-        <span style="font-size:0.8rem;">m/s</span>
-      </div>
+      <div><span class="label-large">平均速度</span><span id="avgText" class="val-sub" style="color: var(--success);">--</span><span style="font-size:0.8rem;">m/s</span></div>
+      <div><span class="label-large">峰值速度</span><span id="peakText" class="val-sub" style="color: var(--info);">--</span><span style="font-size:0.8rem;">m/s</span></div>
     </div>
   </div>
 
-  <div class="chart-container">
-    <canvas id="liveChart"></canvas>
-  </div>
+  <div class="chart-container"><canvas id="liveChart"></canvas></div>
 
   <div class="action-box">
     <input type="text" id="setNote" placeholder="點此輸入組數備註">
@@ -103,55 +50,66 @@
   </div>
 
   <div style="margin-top:20px; text-align:left;">
-    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-      <span style="font-weight:900; font-size:1.2rem; color:#FFF;">歷史紀錄</span>
-      <button id="clearBtn" style="background:none; color:red; font-size:0.8rem;">全部刪除</button>
-    </div>
+    <div style="display:flex; justify-content:space-between; margin-bottom:10px;"><span style="font-weight:900; font-size:1.2rem; color:#FFF;">歷史紀錄</span><button id="clearBtn" style="background:none; color:red; font-size:0.8rem;">全部刪除</button></div>
     <div id="historyList"></div>
   </div>
 
 <script>
-// (JavaScript 邏輯保持不變，確保穩定性，僅修正視覺綁定)
 const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
 const CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
 
-let gravity = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [];
+let gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [];
 let state = 0, startTime = 0, calibBuffer = [], isCalibrated = false;
-let currentSetData = [];
-let lowVelocityCount = 0;
+let currentSetData = [], lowVelocityCount = 0;
 
-const liveCtx = document.getElementById('liveChart').getContext('2d');
-const liveChart = new Chart(liveCtx, {
+const liveChart = new Chart(document.getElementById('liveChart').getContext('2d'), {
     type: 'line',
     data: { labels: [], datasets: [
-        { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false, pointRadius: 4 },
-        { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false, pointRadius: 4 }
+        { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false },
+        { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false }
     ]},
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false } } }
 });
 
-function updateVBT(rawZ) {
+function updateVBT(x, y, z) {
+    // 1. 計算合力向量 (Vector Magnitude)
+    let mag = Math.sqrt(x*x + y*y + z*z);
+
     if (!isCalibrated) {
-        calibBuffer.push(rawZ);
+        calibBuffer.push(mag);
         if (calibBuffer.length >= 100) {
-            gravity = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length;
+            gravityMag = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length;
             isCalibrated = true;
-            document.getElementById('status').innerText = '狀態：校準完成';
+            document.getElementById('status').innerText = `校準完成 G=${gravityMag.toFixed(3)}`;
         }
         return null;
     }
-    let netAccel = rawZ - gravity;
-    if (Math.abs(netAccel) < 0.06) {
+
+    // 2. 扣除基準重力 (無論角度如何)
+    let netAccel = mag - gravityMag;
+    
+    // 3. 噪聲過濾
+    if (Math.abs(netAccel) < 0.07) {
         netAccel = 0.0;
-        if (state === 0) { velocity = 0.0; gravity = gravity * 0.95 + rawZ * 0.05; return null; }
+        if (state === 0) {
+            velocity = 0.0;
+            gravityMag = gravityMag * 0.98 + mag * 0.02; // 動態追蹤基準
+            return null;
+        }
     }
+
     velocity += netAccel * 9.81 * 0.01;
-    if (state === 0 && Math.abs(netAccel) > 0.12) { 
+
+    // 4. 狀態機 (向心偵測)
+    if (state === 0 && netAccel > 0.12) {
         state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0;
     } else if (state === 1 && velocity > 0.10) { state = 2; }
     else if (state === 2) {
-        if (velocity > 0) { velocities.push(velocity); if (velocity > maxVelocity) maxVelocity = velocity; lowVelocityCount = 0; }
-        else { lowVelocityCount++; }
+        if (velocity > 0) {
+            velocities.push(velocity);
+            if (velocity > maxVelocity) maxVelocity = velocity;
+            lowVelocityCount = 0;
+        } else { lowVelocityCount++; }
         if ((velocity < 0.08 && velocities.length > 15 && lowVelocityCount > 15) || (Date.now() - startTime > 8000)) state = 3;
     } else if (state === 3) {
         let res = null;
@@ -177,39 +135,23 @@ function addRepToUI(res) {
 function renderHistory() {
     const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
     const container = document.getElementById('historyList');
-    container.innerHTML = history.map((set, index) => {
-        const mcvSet = (set.data.reduce((a, b) => a + b.avg, 0) / set.reps).toFixed(2);
-        return `
-            <div class="history-item">
-                <div style="display:flex; justify-content:space-between;">
-                    <div style="flex:1;" onclick="toggleHistory(${index})">
-                        <div style="font-weight:900; color:var(--primary);">${set.date}</div>
-                        <div style="font-size:1rem; font-weight:bold; margin:5px 0;">${set.note || '無備註'}</div>
-                        <div style="font-weight:bold;">${set.reps} 下 | 平均 ${mcvSet} m/s</div>
-                    </div>
-                    <button onclick="deleteHistory(event, ${index})" style="background:none; color:red; font-size:0.8rem;">刪除</button>
+    container.innerHTML = history.map((set, index) => `
+        <div class="history-item">
+            <div style="display:flex; justify-content:space-between;">
+                <div style="flex:1;" onclick="toggleHistory(${index})">
+                    <div style="font-weight:900; color:var(--primary);">${set.date}</div>
+                    <div style="font-weight:bold; margin:5px 0;">${set.note || '無備註'}</div>
+                    <div>${set.reps} 下 | 平均 ${(set.data.reduce((a,b)=>a+b.avg,0)/set.reps).toFixed(2)} m/s</div>
                 </div>
-                <div id="detail-${index}" style="display:none; height:150px; margin-top:10px;"><canvas id="chart-${index}"></canvas></div>
+                <button onclick="deleteHistory(event, ${index})" style="background:none; color:red; font-weight:bold;">刪除</button>
             </div>
-        `;
-    }).join('');
-    history.forEach((set, index) => setTimeout(() => createHistoryChart(index, set.data), 100));
-}
-
-function createHistoryChart(index, data) {
-    const canvas = document.getElementById(`chart-${index}`);
-    if (!canvas) return;
-    new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: data.map((_, i) => i + 1),
-            datasets: [
-                { data: data.map(d => d.avg.toFixed(2)), borderColor: '#008000', borderWidth: 2, fill: false },
-                { data: data.map(d => d.peak.toFixed(2)), borderColor: '#0000FF', borderWidth: 2, fill: false }
-            ]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
+            <div id="detail-${index}" style="display:none; height:150px; margin-top:10px;"><canvas id="chart-${index}"></canvas></div>
+        </div>
+    `).join('');
+    history.forEach((set, index) => setTimeout(() => {
+        const c = document.getElementById(`chart-${index}`);
+        if(c) new Chart(c.getContext('2d'), { type: 'line', data: { labels: set.data.map((_,i)=>i+1), datasets: [{ data: set.data.map(d=>d.avg), borderColor: '#008000', fill: false },{ data: set.data.map(d=>d.peak), borderColor: '#0000FF', fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+    }, 100));
 }
 
 window.toggleHistory = (i) => { const d = document.getElementById(`detail-${i}`); d.style.display = d.style.display === 'none' ? 'block' : 'none'; };
@@ -223,32 +165,8 @@ document.getElementById('saveBtn').addEventListener('click', () => {
     document.getElementById('setNote').value = ''; renderHistory(); alert('儲存成功');
 });
 
-document.getElementById('exportBtn').addEventListener('click', () => {
-    const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
-    if (history.length === 0) { alert('沒有資料可匯出'); return; }
-    
-    let csv = "\uFEFF日期,備註,次數,平均速度,峰值速度\n";
-    history.forEach(set => {
-        set.data.forEach((rep, index) => {
-            csv += `${set.date},${set.note || ''},${index+1},${rep.avg.toFixed(2)},${rep.peak.toFixed(2)}\n`;
-        });
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `VBT_訓練紀錄_${new Date().getTime()}.csv`;
-    document.body.appendChild(link); // 必須加入 body
-    link.click();
-    document.body.removeChild(link); // 隨即移除
-    URL.revokeObjectURL(url);
-    alert('檔案已準備下載');
-});
-
 document.getElementById('resetBtn').addEventListener('click', () => {
-    currentSetData = []; document.getElementById('repsText').innerText = "0"; 
-    document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--";
+    currentSetData = []; document.getElementById('repsText').innerText = "0"; document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--";
     liveChart.data.labels = []; liveChart.data.datasets.forEach(d => d.data = []); liveChart.update();
 });
 
@@ -262,12 +180,14 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
         document.getElementById('connectBtn').classList.add('connected');
         document.getElementById('connectBtn').innerText = '連線成功';
         characteristic.addEventListener('characteristicvaluechanged', (e) => {
-            let res = updateVBT(parseFloat(new TextDecoder().decode(e.target.value).split(',')[2]));
-            if (res) addRepToUI(res);
+            let parts = new TextDecoder('utf-8').decode(e.target.value).split(',');
+            if (parts.length === 3) {
+                let res = updateVBT(parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2]));
+                if (res) addRepToUI(res);
+            }
         });
     } catch (e) { alert(e); }
 });
-
 renderHistory();
 </script>
 </body>
