@@ -3,138 +3,135 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>VBT Pro Voice</title>
+<title>VBT Pro Voice Plus</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root { --bg-color: #000000; --panel-bg: #FFFFFF; --primary: #FF5200; --success: #008000; --info: #0000FF; --warning: #FF8F00; --text-dark: #000000; --text-light: #FFFFFF; }
   body { font-family: -apple-system, sans-serif; background: var(--bg-color); color: var(--text-light); margin: 0; padding: 10px; padding-bottom: 60px; }
   
-  .header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; margin-bottom: 10px; }
-  .title { font-size: 1.1rem; font-weight: 900; color: var(--primary); }
-
-  /* 按鈕並列佈局 */
-  .top-controls { display: flex; gap: 10px; margin-bottom: 10px; }
-  .btn-main { flex: 1.5; background: var(--primary); color: white; border: 3px solid white; font-size: 1.1rem; padding: 15px; border-radius: 12px; font-weight: 900; cursor: pointer; }
-  .btn-main.connected { background: #FFFFFF; color: #00C853; border: 3px solid #00C853; }
-  .btn-sub { flex: 1; background: #333; color: white; border: none; font-size: 1rem; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+  /* 頂部三鍵導覽列 */
+  .top-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  #connectBtn { flex: 2; background: var(--primary); color: white; border: 2px solid white; padding: 12px; border-radius: 10px; font-weight: 900; font-size: 1rem; }
+  #connectBtn.connected { background: #FFFFFF; color: #00C853; border: 2px solid #00C853; }
+  #resetBtn { flex: 1; background: #333; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 0.9rem; }
+  #configToggle { flex: 0.6; background: #222; color: #AAA; border: 1px solid #444; padding: 12px; border-radius: 10px; font-size: 1rem; }
 
   .main-panel { background: var(--panel-bg); color: var(--text-dark); border-radius: 15px; padding: 20px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
-  .stat-row { border-bottom: 2px solid #EEE; padding: 10px 0; }
   .val-mega { font-size: 4.5rem; font-weight: 900; line-height: 1; display: block; margin: 5px 0; }
-  .val-sub { font-size: 2.8rem; font-weight: 900; line-height: 1; display: block; }
-  .dual-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+  .val-sub { font-size: 2.5rem; font-weight: 900; line-height: 1; display: block; }
+  .dual-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
   
-  .config-section { background: #1A1A1A; border-radius: 12px; padding: 15px; margin-top: 15px; border: 1px solid #333; text-align: left; }
-  .config-title { font-weight: bold; color: var(--warning); display: flex; justify-content: space-between; cursor: pointer; }
-  .config-content { display: none; margin-top: 15px; }
-  .config-content.open { display: block; }
+  /* 設定面板 (隱藏模式) */
+  .config-overlay { display: none; background: #1A1A1A; border-radius: 12px; padding: 15px; margin-top: 10px; border: 1px solid #444; text-align: left; }
+  .config-overlay.open { display: block; }
   .config-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-  .config-row input { width: 60px; padding: 5px; background: #000; border: 1px solid #555; color: #FFF; text-align: center; border-radius: 4px; }
+  .config-row label { font-size: 0.85rem; color: #CCC; }
+  .config-row select, .config-row input { background: #000; color: #FFF; border: 1px solid #555; padding: 5px; border-radius: 4px; }
 
   .chart-container { background: #FFF; margin-top: 15px; padding: 5px; border-radius: 10px; height: 180px; }
   .action-box { background: #222; padding: 15px; border-radius: 12px; margin-top: 15px; }
-  #setNote { width: 100%; padding: 12px; font-size: 1rem; border-radius: 8px; border: none; margin-bottom: 10px; }
   .history-item { background: #FFF; color: #000; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 8px solid var(--primary); text-align: left; }
   .monitor-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #333; padding: 8px 15px; font-family: monospace; font-size: 0.7rem; color: #00FF00; display: flex; justify-content: space-between; align-items: center; }
 </style>
 </head>
 <body>
-  <div class="header"><span class="title">VBT PRO v2.4</span><span id="status" style="font-size:0.7rem; color:#888;">尚未連線</span></div>
-
-  <div class="top-controls">
-    <button id="connectBtn" class="btn-main">連線感測器</button>
-    <button id="resetBtn" class="btn-sub">新組數</button>
+  <div class="top-bar">
+    <button id="connectBtn">連接感測器</button>
+    <button id="resetBtn">新組數</button>
+    <button id="configToggle">⚙️</button>
   </div>
 
-  <div class="main-panel">
-    <div class="stat-row"><span id="repsText" class="val-mega">0</span><span style="font-size:0.8rem;color:#666;font-weight:bold;">REPS</span></div>
-    <div class="dual-cols">
-      <div><span id="avgText" class="val-sub" style="color: var(--success);">--</span><span style="font-size:0.75rem;color:#666;">AVG m/s</span></div>
-      <div><span id="peakText" class="val-sub" style="color: var(--info);">--</span><span style="font-size:0.75rem;color:#666;">PEAK m/s</span></div>
+  <div id="status" style="font-size:0.65rem; color:#666; margin-bottom:8px;">尚未連線</div>
+
+  <!-- 點擊右上角切換顯示的進階設定 -->
+  <div id="configPanel" class="config-overlay">
+    <div style="font-weight:bold; color:var(--warning); margin-bottom:15px; font-size:1rem;">系統設定</div>
+    <div class="config-row">
+      <label>語音模式</label>
+      <select id="cfgVoiceMode">
+        <option value="none">關閉語音</option>
+        <option value="avg" selected>僅播報平均速度</option>
+        <option value="peak">僅播報峰值速度</option>
+        <option value="both">兩者皆播報</option>
+      </select>
+    </div>
+    <div class="config-row"><label>啟動靈敏度 (G)</label><input type="number" id="cfgStart" step="0.01"></div>
+    <div class="config-row"><label>靜止死區 (G)</label><input type="number" id="cfgDead" step="0.01"></div>
+    <div class="config-row"><label>結束緩衝 (幀)</label><input type="number" id="cfgEnd" step="1"></div>
+    <div style="display:flex; gap:8px;">
+      <button onclick="saveSettings()" style="background:var(--warning); color:#000; flex:1; font-size:0.8rem; padding:10px;">儲存</button>
+      <button onclick="resetSettings()" style="background:#444; color:#FFF; flex:0.6; font-size:0.8rem; padding:10px;">恢復</button>
     </div>
   </div>
 
-  <div class="config-section">
-    <div class="config-title" onclick="toggleConfig()">⚙️ 進階設定 <span id="configArrow">▼</span></div>
-    <div id="configContent" class="config-content">
-      <div class="config-row"><label>語音播報</label><input type="checkbox" id="cfgVoice" checked style="width:20px;height:20px;"></div>
-      <div class="config-row"><label>啟動靈敏度 (G)</label><input type="number" id="cfgStart" step="0.01"></div>
-      <div class="config-row"><label>靜止死區 (G)</label><input type="number" id="cfgDead" step="0.01"></div>
-      <div class="config-row"><label>結束緩衝 (幀)</label><input type="number" id="cfgEnd" step="1"></div>
-      <div style="display:flex; gap:10px;">
-        <button onclick="saveSettings()" style="background:var(--warning); color:#000; flex:1; font-size:0.8rem; padding:10px;">套用</button>
-        <button onclick="resetSettings()" style="background:#444; color:#FFF; flex:0.6; font-size:0.8rem; padding:10px;">恢復預設</button>
-      </div>
+  <div class="main-panel">
+    <div style="border-bottom:2px solid #EEE; padding-bottom:10px;"><span id="repsText" class="val-mega">0</span><span style="font-size:0.8rem;color:#666;font-weight:bold;">REPS</span></div>
+    <div class="dual-cols">
+      <div><span id="avgText" class="val-sub" style="color:var(--success);">--</span><span style="font-size:0.7rem;color:#666;">AVG m/s</span></div>
+      <div><span id="peakText" class="val-sub" style="color:var(--info);">--</span><span style="font-size:0.7rem;color:#666;">PEAK m/s</span></div>
     </div>
   </div>
 
   <div class="chart-container"><canvas id="liveChart"></canvas></div>
 
   <div class="action-box">
-    <input type="text" id="setNote" placeholder="輸入備註">
+    <input type="text" id="setNote" placeholder="輸入備註" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:none; box-sizing:border-box;">
     <div style="display:flex; gap:10px;">
-      <button id="saveBtn" style="background:var(--success); color:#FFF; flex:1; font-size:1rem; padding:12px;">儲存本組數據</button>
-      <button id="exportBtn" style="background:var(--info); color:#FFF; flex:0.4; font-size:1rem;">匯出</button>
+      <button id="saveBtn" style="background:var(--success); color:#FFF; flex:1;">儲存本組數據</button>
+      <button id="exportBtn" style="background:var(--info); color:#FFF; flex:0.4;">匯出</button>
     </div>
   </div>
 
   <div style="margin-top:20px; text-align:left;"><h3 style="color:#FFF; font-size:1.1rem;">歷史紀錄</h3><div id="historyList"></div></div>
 
-  <div class="monitor-footer">
-    <div>RAW: <span id="rX">0.0</span>, <span id="rY">0.0</span>, <span id="rZ">0.0</span></div>
-    <div id="fpsDisplay">-- Hz</div>
-  </div>
+  <div class="monitor-footer"><div>RAW: <span id="rX">0.0</span>, <span id="rY">0.0</span>, <span id="rZ">0.0</span></div><div id="fpsDisplay">-- Hz</div></div>
 
 <script>
-// --- 語音播報引擎 ---
-function speak(text) {
-    if (!settings.voice) return;
+// --- 語音模式邏輯 ---
+function handleSpeech(res) {
+    if (settings.voiceMode === 'none') return;
+    let text = "";
+    if (settings.voiceMode === 'avg') text = res.avg.toFixed(2);
+    else if (settings.voiceMode === 'peak') text = res.peak.toFixed(2);
+    else if (settings.voiceMode === 'both') text = `平均 ${res.avg.toFixed(2)}，峰值 ${res.peak.toFixed(2)}`;
+    
     const msg = new SpeechSynthesisUtterance(text);
-    msg.lang = 'zh-TW';
-    msg.rate = 1.2;
+    msg.lang = 'zh-TW'; msg.rate = 1.2;
     window.speechSynthesis.speak(msg);
 }
 
-// --- 設定管理 ---
-const DEFAULT_SETTINGS = { start: 0.12, dead: 0.07, end: 15, voice: true };
+// --- 設定與 UI 控制 ---
+const DEFAULT_SETTINGS = { start: 0.12, dead: 0.07, end: 15, voiceMode: 'avg' };
 let settings = {...DEFAULT_SETTINGS};
 
 function loadSettings() {
     const saved = localStorage.getItem('vbt_settings');
     if (saved) settings = JSON.parse(saved);
-    applyToInputs();
-}
-function applyToInputs() {
     document.getElementById('cfgStart').value = settings.start;
     document.getElementById('cfgDead').value = settings.dead;
     document.getElementById('cfgEnd').value = settings.end;
-    document.getElementById('cfgVoice').checked = settings.voice;
+    document.getElementById('cfgVoiceMode').value = settings.voiceMode || 'avg';
 }
 function saveSettings() {
     settings.start = parseFloat(document.getElementById('cfgStart').value);
     settings.dead = parseFloat(document.getElementById('cfgDead').value);
     settings.end = parseInt(document.getElementById('cfgEnd').value);
-    settings.voice = document.getElementById('cfgVoice').checked;
+    settings.voiceMode = document.getElementById('cfgVoiceMode').value;
     localStorage.setItem('vbt_settings', JSON.stringify(settings));
-    alert('已儲存！');
+    document.getElementById('configPanel').classList.remove('open');
+    alert('設定成功！');
 }
-function resetSettings() { if(confirm('重置？')) { settings = {...DEFAULT_SETTINGS}; applyToInputs(); localStorage.setItem('vbt_settings', JSON.stringify(settings)); } }
-function toggleConfig() { const c = document.getElementById('configContent'); const a = document.getElementById('configArrow'); c.classList.toggle('open'); a.innerText = c.classList.contains('open') ? '▲' : '▼'; }
+function resetSettings() { if(confirm('還原預設？')) { settings = {...DEFAULT_SETTINGS}; loadSettings(); localStorage.setItem('vbt_settings', JSON.stringify(settings)); } }
+document.getElementById('configToggle').addEventListener('click', () => { document.getElementById('configPanel').classList.toggle('open'); });
 
-const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
-const CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
-
-let gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [];
-let state = 0, startTime = 0, calibBuffer = [], isCalibrated = false;
-let currentSetData = [], lowVelocityCount = 0, packetCount = 0, lastFpsTime = Date.now();
+// --- VBT 核心引擎 (v2.4+) ---
+const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214", CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+let gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [], state = 0, startTime = 0, calibBuffer = [], isCalibrated = false, currentSetData = [], lowVelocityCount = 0, packetCount = 0, lastFpsTime = Date.now();
 
 const liveChart = new Chart(document.getElementById('liveChart').getContext('2d'), {
     type: 'line',
-    data: { labels: [], datasets: [
-        { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false },
-        { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false }
-    ]},
+    data: { labels: [], datasets: [ { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false }, { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false } ] },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false } } }
 });
 
@@ -143,24 +140,13 @@ function updateVBT(x, y, z) {
     document.getElementById('rX').innerText = x.toFixed(1); document.getElementById('rY').innerText = y.toFixed(1); document.getElementById('rZ').innerText = z.toFixed(1);
     const now = Date.now();
     if (now - lastFpsTime >= 1000) { document.getElementById('fpsDisplay').innerText = packetCount + " Hz"; packetCount = 0; lastFpsTime = now; }
-
     let mag = Math.sqrt(x*x + y*y + z*z);
-    if (!isCalibrated) {
-        calibBuffer.push(mag);
-        if (calibBuffer.length >= 100) { gravityMag = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length; isCalibrated = true; document.getElementById('status').innerText = '狀態：校準完成'; }
-        return null;
-    }
-
+    if (!isCalibrated) { calibBuffer.push(mag); if (calibBuffer.length >= 100) { gravityMag = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length; isCalibrated = true; document.getElementById('status').innerText = '狀態：校準完成'; } return null; }
     let netAccel = mag - gravityMag;
-    if (Math.abs(netAccel) < settings.dead) {
-        netAccel = 0.0;
-        if (state === 0) { velocity = 0.0; gravityMag = gravityMag * 0.98 + mag * 0.02; return null; }
-    }
-
+    if (Math.abs(netAccel) < settings.dead) { netAccel = 0.0; if (state === 0) { velocity = 0.0; gravityMag = gravityMag * 0.98 + mag * 0.02; return null; } }
     velocity += netAccel * 9.81 * 0.01;
-    if (state === 0 && netAccel > settings.start) {
-        state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0;
-    } else if (state === 1 && velocity > 0.10) { state = 2; }
+    if (state === 0 && netAccel > settings.start) { state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0; }
+    else if (state === 1 && velocity > 0.10) { state = 2; }
     else if (state === 2) {
         if (velocity > 0) { velocities.push(velocity); if (velocity > maxVelocity) maxVelocity = velocity; lowVelocityCount = 0; }
         else { lowVelocityCount++; }
@@ -178,14 +164,8 @@ function addRepToUI(res) {
     document.getElementById('avgText').innerText = res.avg.toFixed(2);
     document.getElementById('peakText').innerText = res.peak.toFixed(2);
     document.getElementById('repsText').innerText = currentSetData.length;
-    
-    // 語音播報：僅報出數值，例如「零點四五」
-    speak(res.avg.toFixed(2));
-
-    liveChart.data.labels.push(currentSetData.length);
-    liveChart.data.datasets[0].data.push(res.avg.toFixed(2));
-    liveChart.data.datasets[1].data.push(res.peak.toFixed(2));
-    liveChart.update();
+    handleSpeech(res);
+    liveChart.data.labels.push(currentSetData.length); liveChart.data.datasets[0].data.push(res.avg.toFixed(2)); liveChart.data.datasets[1].data.push(res.peak.toFixed(2)); liveChart.update();
 }
 
 function renderHistory() {
@@ -195,9 +175,9 @@ function renderHistory() {
         <div class="history-item">
             <div style="display:flex; justify-content:space-between;">
                 <div style="flex:1;" onclick="toggleHistoryCard(${index})">
-                    <div style="font-weight:900; color:var(--primary); font-size:0.85rem;">${set.date}</div>
-                    <div style="font-weight:bold; margin:3px 0;">${set.note || '無備註'}</div>
-                    <div style="font-size:0.85rem;">${set.reps} 下 | 平均 ${(set.data.reduce((a,b)=>a+b.avg,0)/set.reps).toFixed(2)} m/s</div>
+                    <div style="font-weight:900; color:var(--primary); font-size:0.8rem;">${set.date}</div>
+                    <div style="font-weight:bold; font-size:0.9rem; margin:3px 0;">${set.note || '無備註'}</div>
+                    <div style="font-size:0.8rem;">${set.reps} 下 | 平均 ${(set.data.reduce((a,b)=>a+b.avg,0)/set.reps).toFixed(2)} m/s</div>
                 </div>
                 <button onclick="deleteHistory(event, ${index})" style="background:none; color:red; font-size:0.8rem; padding:10px;">刪除</button>
             </div>
@@ -206,7 +186,7 @@ function renderHistory() {
     `).join('');
     history.forEach((set, index) => setTimeout(() => {
         const c = document.getElementById(`chart-${index}`);
-        if(c) new Chart(c.getContext('2d'), { type: 'line', data: { labels: set.data.map((_,i)=>i+1), datasets: [{ data: set.data.map(d=>d.avg), borderColor: '#008000', fill: false },{ data: set.data.map(d=>d.peak), borderColor: '#0000FF', fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        if(c) new Chart(c.getContext('2d'), { type: 'line', data: { labels: set.data.map((_,i)=>i+1), datasets: [{ data: set.data.map(d=>d.avg), borderColor: '#008000', fill: false }, { data: set.data.map(d=>d.peak), borderColor: '#0000FF', fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
     }, 100));
 }
 
@@ -224,7 +204,6 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 document.getElementById('resetBtn').addEventListener('click', () => {
     currentSetData = []; document.getElementById('repsText').innerText = "0"; document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--";
     liveChart.data.labels = []; liveChart.data.datasets.forEach(d => d.data = []); liveChart.update();
-    document.getElementById('status').innerText = '狀態：已開啟新組數';
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
@@ -255,8 +234,7 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
     } catch (e) { alert(e); }
 });
 
-loadSettings();
-renderHistory();
+loadSettings(); renderHistory();
 </script>
 </body>
 </html>
