@@ -19,7 +19,6 @@
   .dual-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
   .chart-container { background: #FFF; margin-top: 10px; padding: 5px; border-radius: 10px; height: 180px; }
   
-  /* 進階設定面板 */
   .config-section { background: #1A1A1A; border-radius: 12px; padding: 15px; margin-top: 15px; border: 1px solid #333; text-align: left; }
   .config-title { font-weight: bold; color: var(--warning); display: flex; justify-content: space-between; cursor: pointer; }
   .config-content { display: none; margin-top: 15px; }
@@ -37,7 +36,7 @@
 </style>
 </head>
 <body>
-  <div class="header"><span class="title">VBT PRO v2.2</span><button id="resetBtn" style="background:#FFF; color:#000; font-size:0.8rem; padding:5px 10px;">新組數</button></div>
+  <div class="header"><span class="title">VBT PRO v2.3</span><button id="resetBtn" style="background:#FFF; color:#000; font-size:0.8rem; padding:5px 10px;">新組數</button></div>
   <button id="connectBtn">連接感測器</button>
   <div id="status" style="font-size:0.7rem; color:#888; margin:5px 0;">尚未連線</div>
 
@@ -49,23 +48,26 @@
     </div>
   </div>
 
-  <!-- 進階設定面板 -->
+  <!-- 修改為在地化用語「進階設定」 -->
   <div class="config-section">
-    <div class="config-title" onclick="toggleConfig()">⚙️ 進階算法設定 <span id="configArrow">▼</span></div>
+    <div class="config-title" onclick="toggleConfig()">⚙️ 進階設定 <span id="configArrow">▼</span></div>
     <div id="configContent" class="config-content">
       <div class="config-row">
         <label>啟動靈敏度 (G)</label>
-        <input type="number" id="cfgStart" step="0.01" value="0.12">
+        <input type="number" id="cfgStart" step="0.01">
       </div>
       <div class="config-row">
         <label>靜止死區 (G)</label>
-        <input type="number" id="cfgDead" step="0.01" value="0.07">
+        <input type="number" id="cfgDead" step="0.01">
       </div>
       <div class="config-row">
         <label>結束判斷緩衝 (幀)</label>
-        <input type="number" id="cfgEnd" step="1" value="15">
+        <input type="number" id="cfgEnd" step="1">
       </div>
-      <button onclick="saveSettings()" style="background:var(--warning); color:#000; width:100%; font-size:0.8rem; padding:10px;">套用並儲存設定</button>
+      <div style="display:flex; gap:10px;">
+        <button onclick="saveSettings()" style="background:var(--warning); color:#000; flex:1; font-size:0.8rem; padding:10px;">套用設定</button>
+        <button onclick="resetSettings()" style="background:#444; color:#FFF; flex:0.6; font-size:0.8rem; padding:10px;">恢復預設</button>
+      </div>
     </div>
   </div>
 
@@ -74,7 +76,7 @@
   <div style="background:#222; padding:15px; border-radius:12px; margin-top:15px;">
     <input type="text" id="setNote" placeholder="輸入組數備註" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:none;">
     <div style="display:flex; gap:10px;">
-      <button id="saveBtn" style="background:var(--success); color:#FFF; flex:1;">儲存本組</button>
+      <button id="saveBtn" style="background:var(--success); color:#FFF; flex:1;">儲存本組數據</button>
       <button id="exportBtn" style="background:var(--info); color:#FFF; flex:0.4;">匯出</button>
     </div>
   </div>
@@ -90,24 +92,38 @@
   </div>
 
 <script>
-// --- VBT 核心邏輯 (與設定連動) ---
-let settings = { start: 0.12, dead: 0.07, end: 15 };
+// --- 預設值與設定邏輯 ---
+const DEFAULT_SETTINGS = { start: 0.12, dead: 0.07, end: 15 };
+let settings = {...DEFAULT_SETTINGS};
+
 function loadSettings() {
     const saved = localStorage.getItem('vbt_settings');
-    if (saved) {
-        settings = JSON.parse(saved);
-        document.getElementById('cfgStart').value = settings.start;
-        document.getElementById('cfgDead').value = settings.dead;
-        document.getElementById('cfgEnd').value = settings.end;
-    }
+    if (saved) settings = JSON.parse(saved);
+    applyToInputs();
 }
+
+function applyToInputs() {
+    document.getElementById('cfgStart').value = settings.start;
+    document.getElementById('cfgDead').value = settings.dead;
+    document.getElementById('cfgEnd').value = settings.end;
+}
+
 function saveSettings() {
     settings.start = parseFloat(document.getElementById('cfgStart').value);
     settings.dead = parseFloat(document.getElementById('cfgDead').value);
     settings.end = parseInt(document.getElementById('cfgEnd').value);
     localStorage.setItem('vbt_settings', JSON.stringify(settings));
-    alert('設定已更新！');
+    alert('設定已儲存並生效！');
 }
+
+function resetSettings() {
+    if(confirm('確定要恢復為出廠預設值嗎？')) {
+        settings = {...DEFAULT_SETTINGS};
+        applyToInputs();
+        localStorage.setItem('vbt_settings', JSON.stringify(settings));
+    }
+}
+
 function toggleConfig() {
     const c = document.getElementById('configContent');
     const a = document.getElementById('configArrow');
@@ -147,21 +163,18 @@ function updateVBT(x, y, z) {
     }
 
     let netAccel = mag - gravityMag;
-    // 使用動態設定: dead
     if (Math.abs(netAccel) < settings.dead) {
         netAccel = 0.0;
         if (state === 0) { velocity = 0.0; gravityMag = gravityMag * 0.98 + mag * 0.02; return null; }
     }
 
     velocity += netAccel * 9.81 * 0.01;
-    // 使用動態設定: start
     if (state === 0 && netAccel > settings.start) {
         state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0;
     } else if (state === 1 && velocity > 0.10) { state = 2; }
     else if (state === 2) {
         if (velocity > 0) { velocities.push(velocity); if (velocity > maxVelocity) maxVelocity = velocity; lowVelocityCount = 0; }
         else { lowVelocityCount++; }
-        // 使用動態設定: end buffer
         if ((velocity < 0.08 && velocities.length > 15 && lowVelocityCount > settings.end) || (Date.now() - startTime > 8000)) state = 3;
     } else if (state === 3) {
         let res = null;
