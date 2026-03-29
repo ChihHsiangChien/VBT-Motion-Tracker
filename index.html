@@ -165,7 +165,10 @@ function renderHistory() {
                     <div style="font-weight:bold; font-size:0.9rem;">${set.date}</div>
                     <div style="font-size:0.8rem; color:#888;">${set.reps} 下 | 平均 ${mcvSet} m/s</div>
                 </div>
-                <div style="color:var(--primary);">▼</div>
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <span onclick="deleteHistory(event, ${index})" style="color:#f44336; font-size:0.8rem; padding:10px;">刪除</span>
+                    <div style="color:var(--primary);">▼</div>
+                </div>
             </div>
             <div id="detail-${index}" class="history-detail">
                 <div class="history-mini-chart"><canvas id="chart-${index}"></canvas></div>
@@ -175,6 +178,16 @@ function renderHistory() {
         setTimeout(() => createHistoryChart(index, set.data), 50);
     });
 }
+
+window.deleteHistory = (event, index) => {
+    event.stopPropagation(); // 防止觸發卡片展開
+    if(confirm('確定要刪除這組紀錄嗎？')) {
+        const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
+        history.splice(index, 1);
+        localStorage.setItem('vbt_history', JSON.stringify(history));
+        renderHistory();
+    }
+};
 
 function createHistoryChart(index, data) {
     const canvas = document.getElementById(`chart-${index}`);
