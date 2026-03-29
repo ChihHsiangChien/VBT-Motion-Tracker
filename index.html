@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>VBT Pro Direction-Aware</title>
+<title>VBT Pro v3.0</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -18,130 +18,120 @@
   .config-overlay.open { display: block; }
   .config-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .config-row label { font-size: 0.8rem; color: #CCC; }
-  .config-row input, .config-row select { background: #000; color: #FFF; border: 1px solid #555; padding: 5px; border-radius: 4px; width: 70px; text-align: center; }
-  .help-box { background: #FFEB3B; color: #000; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 15px; line-height: 1.6; border: 3px solid var(--primary); font-weight: bold; }
-  .help-box b { color: #D32F2F; font-size: 0.95rem; }
+  .config-row select, .config-row input { background: #000; color: #FFF; border: 1px solid #555; padding: 5px; border-radius: 4px; width: 75px; text-align: center; }
+  .help-box { background: #FFEB3B; color: #000; padding: 12px; border-radius: 8px; font-size: 0.8rem; margin-top: 15px; line-height: 1.5; border: 2px solid var(--primary); font-weight: bold; }
   .main-panel { background: var(--panel-bg); color: var(--text-dark); border-radius: 15px; padding: 20px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
   .val-mega { font-size: 4.5rem; font-weight: 900; line-height: 1; display: block; margin: 5px 0; }
-  .val-sub { font-size: 2.5rem; font-weight: 900; line-height: 1; display: block; }
-  .dual-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
-  .chart-container { background: #FFF; margin-top: 15px; padding: 5px; border-radius: 10px; height: 180px; }
-  .action-box { background: #222; padding: 15px; border-radius: 12px; margin-top: 15px; }
-  .history-item { background: #FFF; color: #000; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 8px solid var(--primary); text-align: left; }
-  .monitor-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #333; padding: 8px 15px; font-family: monospace; font-size: 0.7rem; color: #00FF00; display: flex; justify-content: space-between; align-items: center; }
-  /* 方向指示燈 */
+  .val-sub { font-size: 2.2rem; font-weight: 900; line-height: 1; display: block; }
+  .chart-box { background: #FFF; margin-top: 10px; padding: 5px; border-radius: 10px; height: 160px; display: block; }
+  .hidden { display: none !important; }
   #dirIndicator { font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 10px; }
   .dir-up { background: var(--success); color: white; }
   .dir-down { background: #f44336; color: white; }
   .dir-idle { background: #444; color: #888; }
+  .monitor-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #333; padding: 8px 15px; font-family: monospace; font-size: 0.7rem; color: #00FF00; display: flex; justify-content: space-between; align-items: center; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <span class="title">VBT PRO v2.9</span>
-    <div><span id="dirIndicator" class="dir-idle">待機</span><span id="status" style="font-size:0.65rem; color:#666;">尚未連線</span></div>
-  </div>
+  <div class="header"><span class="title">VBT PRO v3.0</span><div><span id="dirIndicator" class="dir-idle">待機</span><span id="status" style="font-size:0.65rem; color:#666;">尚未連線</span></div></div>
   <div class="top-bar"><button id="connectBtn">連接感測器</button><button id="resetBtn">新組數</button><button id="configToggle">⚙️</button></div>
 
   <div id="configPanel" class="config-overlay">
-    <div style="font-weight:bold; color:var(--warning); margin-bottom:15px;">系統設定</div>
+    <div style="font-weight:bold; color:var(--warning); margin-bottom:12px;">系統與語音</div>
     <div class="config-row"><label>語音模式</label><select id="cfgVoiceMode"><option value="none">關閉</option><option value="avg">平均</option><option value="peak">峰值</option><option value="both">兩者</option></select></div>
     <div class="config-row"><label>語音語速</label><input type="number" id="cfgVoiceRate" step="0.1"></div>
+    <div class="config-row"><label>顯示即時波形</label><input type="checkbox" id="cfgShowWave" checked style="width:20px;height:20px;"></div>
     <hr style="border:0; border-top:1px solid #333; margin:10px 0;">
-    <div class="config-row"><label>啟動靈敏度 (G)</label><input type="number" id="cfgStart" step="0.01"></div>
-    <div class="config-row"><label>靜止死區 (G)</label><input type="number" id="cfgDead" step="0.01"></div>
-    <div class="config-row"><label>結束緩衝 (幀)</label><input type="number" id="cfgEnd" step="1"></div>
-    <div class="config-row"><label>最低有效速 (m/s)</label><input type="number" id="cfgMinV" step="0.01"></div>
-    <div style="display:flex; gap:8px; margin-top:10px;">
-      <button onclick="saveSettings()" style="background:var(--warning); color:#000; flex:1; font-size:0.8rem; padding:10px;">儲存</button>
-      <button onclick="resetSettings()" style="background:#444; color:#FFF; flex:0.6; font-size:0.8rem; padding:10px;">預設</button>
-    </div>
-    <div class="help-box"><b>❓ 調整建議：</b><br>• 漏抓啟動：<b>調低</b>啟動靈敏度。<br>• 慢速抓不到：<b>調低</b>最低有效速。<br>• 結案太慢：<b>調低</b>結束緩衝或<b>調高</b>死區。<br>• 誤抓嚴重：<b>調高</b>啟動靈敏度或死區。</div>
+    <div style="font-weight:bold; color:var(--warning); margin-bottom:12px;">演算法微調</div>
+    <div class="config-row"><label>啟動靈敏度(G)</label><input type="number" id="cfgStart" step="0.01"></div>
+    <div class="config-row"><label>結束緩衝(幀)</label><input type="number" id="cfgEnd" step="1"></div>
+    <div class="config-row"><label>最低有效速(m/s)</label><input type="number" id="cfgMinV" step="0.01"></div>
+    <div style="display:flex; gap:8px;"><button onclick="saveSettings()" style="background:var(--warning); color:#000; flex:1; font-size:0.8rem; padding:10px;">儲存</button><button onclick="resetSettings()" style="background:#444; color:#FFF; flex:0.6; font-size:0.8rem; padding:10px;">預設</button></div>
+    <div class="help-box">漏抓：調低靈敏度。慢速抓不到：調低最低有效速。</div>
   </div>
 
   <div class="main-panel">
     <div style="border-bottom:2px solid #EEE; padding-bottom:10px;"><span id="repsText" class="val-mega">0</span><span style="font-size:0.8rem;color:#666;font-weight:bold;">REPS</span></div>
-    <div class="dual-cols">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
       <div><span id="avgText" class="val-sub" style="color:var(--success);">--</span><span style="font-size:0.7rem;color:#666;">AVG m/s</span></div>
       <div><span id="peakText" class="val-sub" style="color:var(--info);">--</span><span style="font-size:0.7rem;color:#666;">PEAK m/s</span></div>
     </div>
   </div>
 
-  <div class="chart-container"><canvas id="liveChart"></canvas></div>
-  <div style="background:#222; padding:15px; border-radius:12px; margin-top:15px;"><input type="text" id="setNote" placeholder="輸入備註" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:none; box-sizing:border-box;"><div style="display:flex; gap:10px;"><button id="saveBtn" style="background:var(--success); color:#FFF; flex:1;">儲存本組數據</button><button id="exportBtn" style="background:var(--info); color:#FFF; flex:0.4;">匯出</button></div></div>
+  <!-- 即時速度波形圖 (單次) -->
+  <div id="waveBox" class="chart-box"><canvas id="waveChart"></canvas></div>
+  
+  <!-- 組數趨勢圖 (歷史) -->
+  <div class="chart-box"><canvas id="trendChart"></canvas></div>
+
+  <div style="background:#222; padding:15px; border-radius:12px; margin-top:15px;">
+    <input type="text" id="setNote" placeholder="輸入備註" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:none; box-sizing:border-box;">
+    <div style="display:flex; gap:10px;"><button id="saveBtn" style="background:var(--success); color:#FFF; flex:1;">儲存本組</button><button id="exportBtn" style="background:var(--info); color:#FFF; flex:0.4;">匯出</button></div>
+  </div>
+
   <div style="margin-top:20px; text-align:left;"><h3 style="color:#FFF; font-size:1.1rem;">歷史紀錄</h3><div id="historyList"></div></div>
   <div class="monitor-footer"><div>RAW: <span id="rX">0.0</span>, <span id="rY">0.0</span>, <span id="rZ">0.0</span></div><div id="fpsDisplay">0 Hz</div></div>
 
 <script>
-// --- 設定與語音 ---
-const DEFAULT_SETTINGS = { start: 0.12, dead: 0.07, end: 15, voiceMode: 'avg', voiceRate: 1.6, minV: 0.20 };
+// --- 重要：定義 UUID 避免 ReferenceError ---
+const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
+const CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+
+// --- 設定 ---
+const DEFAULT_SETTINGS = { start: 0.12, dead: 0.07, end: 15, voiceMode: 'avg', voiceRate: 1.6, minV: 0.20, showWave: true };
 let settings = {...DEFAULT_SETTINGS};
-function loadSettings() { const saved = localStorage.getItem('vbt_settings'); if (saved) settings = {...DEFAULT_SETTINGS, ...JSON.parse(saved)}; document.getElementById('cfgStart').value = settings.start; document.getElementById('cfgDead').value = settings.dead; document.getElementById('cfgEnd').value = settings.end; document.getElementById('cfgVoiceMode').value = settings.voiceMode; document.getElementById('cfgVoiceRate').value = settings.voiceRate; document.getElementById('cfgMinV').value = settings.minV; }
-function saveSettings() { settings.start = parseFloat(document.getElementById('cfgStart').value); settings.dead = parseFloat(document.getElementById('cfgDead').value); settings.end = parseInt(document.getElementById('cfgEnd').value); settings.voiceMode = document.getElementById('cfgVoiceMode').value; settings.voiceRate = parseFloat(document.getElementById('cfgVoiceRate').value); settings.minV = parseFloat(document.getElementById('cfgMinV').value); localStorage.setItem('vbt_settings', JSON.stringify(settings)); document.getElementById('configPanel').classList.remove('open'); }
-function resetSettings() { if(confirm('重置？')) { settings = {...DEFAULT_SETTINGS}; loadSettings(); localStorage.setItem('vbt_settings', JSON.stringify(settings)); } }
+function loadSettings() { const saved = localStorage.getItem('vbt_settings'); if (saved) settings = {...DEFAULT_SETTINGS, ...JSON.parse(saved)}; document.getElementById('cfgStart').value = settings.start; document.getElementById('cfgEnd').value = settings.end; document.getElementById('cfgVoiceMode').value = settings.voiceMode; document.getElementById('cfgVoiceRate').value = settings.voiceRate; document.getElementById('cfgMinV').value = settings.minV; document.getElementById('cfgShowWave').checked = settings.showWave; updateUIStates(); }
+function saveSettings() { settings.start = parseFloat(document.getElementById('cfgStart').value); settings.end = parseInt(document.getElementById('cfgEnd').value); settings.voiceMode = document.getElementById('cfgVoiceMode').value; settings.voiceRate = parseFloat(document.getElementById('cfgVoiceRate').value); settings.minV = parseFloat(document.getElementById('cfgMinV').value); settings.showWave = document.getElementById('cfgShowWave').checked; localStorage.setItem('vbt_settings', JSON.stringify(settings)); updateUIStates(); document.getElementById('configPanel').classList.remove('open'); }
+function resetSettings() { if(confirm('還原？')) { settings = {...DEFAULT_SETTINGS}; applyToInputs(); localStorage.setItem('vbt_settings', JSON.stringify(settings)); updateUIStates(); } }
+function updateUIStates() { document.getElementById('waveBox').classList.toggle('hidden', !settings.showWave); }
 document.getElementById('configToggle').addEventListener('click', () => { document.getElementById('configPanel').classList.toggle('open'); });
 
 function speak(text) { if (settings.voiceMode === 'none') return; window.speechSynthesis.cancel(); const msg = new SpeechSynthesisUtterance(text); msg.lang = 'zh-TW'; msg.rate = settings.voiceRate; window.speechSynthesis.speak(msg); }
 
-// --- VBT 方向感知引擎 (v2.9) ---
-let gravityVec = {x:0, y:0, z:1}; // 校準時的重力分量
-let gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [], state = 0, startTime = 0, calibBuffer = [], isCalibrated = false, currentSetData = [], lowVelocityCount = 0, packetCount = 0, lastFpsTime = Date.now(), lastPacketTime = Date.now();
+// --- 圖表 ---
+const trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ label: 'Avg', data: [], borderColor: '#008000', borderWidth: 3, tension: 0.2, fill: false }, { label: 'Peak', data: [], borderColor: '#0000FF', borderWidth: 3, tension: 0.2, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } }, x: { display: false } }, plugins: { legend: { display: false }, title: { display: true, text: '組數趨勢', font: {size: 10} } } } });
+const waveChart = new Chart(document.getElementById('waveChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#FF5200', borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(255,82,0,0.1)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } }, x: { display: false } }, plugins: { legend: { display: false }, title: { display: true, text: '單次速度波形', font: {size: 10} } } } });
 
-const liveChart = new Chart(document.getElementById('liveChart').getContext('2d'), { type: 'line', data: { labels: [], datasets: [ { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false }, { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false } } } });
+// --- 引擎 ---
+let gravityVec = {x:0, y:0, z:1}, gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [], state = 0, startTime = 0, calibBuffer = [], isCalibrated = false, currentSetData = [], lowVelocityCount = 0, packetCount = 0, lastFpsTime = Date.now(), lastPacketTime = Date.now();
 
 function updateVBT(x, y, z) {
     lastPacketTime = Date.now(); packetCount++;
     document.getElementById('rX').innerText = x.toFixed(1); document.getElementById('rY').innerText = y.toFixed(1); document.getElementById('rZ').innerText = z.toFixed(1);
-    const now = Date.now();
-    if (now - lastFpsTime >= 1000) { document.getElementById('fpsDisplay').innerText = packetCount + " Hz"; packetCount = 0; lastFpsTime = now; }
+    if (Date.now() - lastFpsTime >= 1000) { document.getElementById('fpsDisplay').innerText = packetCount + " Hz"; packetCount = 0; lastFpsTime = Date.now(); }
 
-    // 1. 校準邏輯：存儲三軸重力向量
     if (!isCalibrated) {
         calibBuffer.push({x, y, z});
         if (calibBuffer.length >= 100) {
-            let sumX = calibBuffer.reduce((a,b)=>a+b.x, 0), sumY = calibBuffer.reduce((a,b)=>a+b.y, 0), sumZ = calibBuffer.reduce((a,b)=>a+b.z, 0);
-            gravityVec = { x: sumX/100, y: sumY/100, z: sumZ/100 };
-            gravityMag = Math.sqrt(gravityVec.x**2 + gravityVec.y**2 + gravityVec.z**2);
-            isCalibrated = true;
-            document.getElementById('status').innerText = '狀態：校準完成';
+            let sumX = calibBuffer.reduce((a,b)=>a+b.x, 0)/100, sumY = calibBuffer.reduce((a,b)=>a+b.y, 0)/100, sumZ = calibBuffer.reduce((a,b)=>a+b.z, 0)/100;
+            gravityVec = {x: sumX, y: sumY, z: sumZ}; gravityMag = Math.sqrt(sumX**2 + sumY**2 + sumZ**2); isCalibrated = true; document.getElementById('status').innerText = '狀態：校準完成';
         }
         return null;
     }
 
-    // 2. 向量投影 (Dot Product)：計算沿著「重力反方向」的加速度
-    // 算法：(目前的加速向量 點積 重力單位向量) - 重力大小
-    // 這樣如果是往上，結果為正；如果是往下，結果為負。
     let dot = (x * gravityVec.x + y * gravityVec.y + z * gravityVec.z) / gravityMag;
-    let netAccel = -(dot - gravityMag); // 負號是因為我們要的是「反重力(向上)」的數值
-
-    // 方向指示器更新
+    let netAccel = -(dot - gravityMag);
     const dirInd = document.getElementById('dirIndicator');
-    if (netAccel > 0.05) { dirInd.innerText = "向上"; dirInd.className = "dir-up"; }
-    else if (netAccel < -0.05) { dirInd.innerText = "向下"; dirInd.className = "dir-down"; }
-    else { dirInd.innerText = "待機"; dirInd.className = "dir-idle"; }
+    if (netAccel > 0.05) { dirInd.innerText = "向上"; dirInd.className = "dir-up"; } else if (netAccel < -0.05) { dirInd.innerText = "向下"; dirInd.className = "dir-down"; } else { dirInd.innerText = "待機"; dirInd.className = "dir-idle"; }
 
-    // 3. 噪聲與狀態機
-    if (Math.abs(netAccel) < settings.dead) {
-        netAccel = 0.0;
-        if (state === 0) { velocity = 0.0; return null; }
-    }
-
+    if (Math.abs(netAccel) < settings.dead) { netAccel = 0.0; if (state === 0) { velocity = 0.0; return null; } }
     velocity += netAccel * 9.81 * 0.01;
 
     if (state === 0 && netAccel > settings.start) {
         state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0;
+        waveChart.data.labels = []; waveChart.data.datasets[0].data = [];
     } else if (state === 1 && velocity > 0.10) { state = 2; }
     else if (state === 2) {
-        // 向心階段：我們只紀錄「正向速度」
         if (velocity > 0) {
             velocities.push(velocity);
             if (velocity > maxVelocity) maxVelocity = velocity;
             lowVelocityCount = 0;
+            // 更新即時波形
+            if (settings.showWave) { waveChart.data.labels.push(""); waveChart.data.datasets[0].data.push(velocity.toFixed(3)); waveChart.update('none'); }
         } else { lowVelocityCount++; }
         if ((velocity < 0.08 && velocities.length > 15 && lowVelocityCount > settings.end) || (Date.now() - startTime > 8000)) state = 3;
     } else if (state === 3) {
-        let res = null;
-        if (velocities.length > 15 && maxVelocity > settings.minV) { res = {avg: velocities.reduce((a, b) => a + b, 0) / velocities.length, peak: maxVelocity}; }
+        let res = (velocities.length > 15 && maxVelocity > settings.minV) ? {avg: velocities.reduce((a, b) => a + b, 0) / velocities.length, peak: maxVelocity} : null;
         state = 0; velocity = 0.0; return res;
     }
     return null;
@@ -152,9 +142,9 @@ function addRepToUI(res) {
     document.getElementById('avgText').innerText = res.avg.toFixed(2);
     document.getElementById('peakText').innerText = res.peak.toFixed(2);
     document.getElementById('repsText').innerText = currentSetData.length;
-    let t = (settings.voiceMode === 'avg') ? res.avg.toFixed(2) : (settings.voiceMode === 'peak') ? res.peak.toFixed(2) : (settings.voiceMode === 'both') ? `平均 ${res.avg.toFixed(2)}，峰值 ${res.peak.toFixed(2)}` : "";
+    let t = (settings.voiceMode === 'avg') ? res.avg.toFixed(2) : (settings.voiceMode === 'peak') ? res.peak.toFixed(2) : (settings.voiceMode === 'both') ? `${res.avg.toFixed(2)}，${res.peak.toFixed(2)}` : "";
     if(t) speak(t);
-    liveChart.data.labels.push(currentSetData.length); liveChart.data.datasets[0].data.push(res.avg.toFixed(2)); liveChart.data.datasets[1].data.push(res.peak.toFixed(2)); liveChart.update();
+    trendChart.data.labels.push(currentSetData.length); trendChart.data.datasets[0].data.push(res.avg.toFixed(2)); trendChart.data.datasets[1].data.push(res.peak.toFixed(2)); trendChart.update();
 }
 
 function renderHistory() {
@@ -167,11 +157,11 @@ window.toggleHistoryCard = (i) => { const d = document.getElementById(`detail-${
 window.deleteHistory = (e, i) => { e.stopPropagation(); if(confirm('刪除？')) { const h = JSON.parse(localStorage.getItem('vbt_history') || '[]'); h.splice(i, 1); localStorage.setItem('vbt_history', JSON.stringify(h)); renderHistory(); } };
 
 document.getElementById('saveBtn').addEventListener('click', () => { if (currentSetData.length === 0) return; const history = JSON.parse(localStorage.getItem('vbt_history') || '[]'); history.unshift({ date: new Date().toLocaleString('zh-TW'), reps: currentSetData.length, note: document.getElementById('setNote').value, data: [...currentSetData] }); localStorage.setItem('vbt_history', JSON.stringify(history.slice(0, 30))); document.getElementById('setNote').value = ''; renderHistory(); alert('儲存成功'); });
-document.getElementById('resetBtn').addEventListener('click', () => { currentSetData = []; document.getElementById('repsText').innerText = "0"; document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--"; liveChart.data.labels = []; liveChart.data.datasets.forEach(d => d.data = []); liveChart.update(); });
+document.getElementById('resetBtn').addEventListener('click', () => { currentSetData = []; document.getElementById('repsText').innerText = "0"; document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--"; trendChart.data.labels = []; trendChart.data.datasets.forEach(d => d.data = []); trendChart.update(); });
 document.getElementById('exportBtn').addEventListener('click', () => { const history = JSON.parse(localStorage.getItem('vbt_history') || '[]'); if (history.length === 0) return; let csv = "\uFEFF日期,備註,次數,平均,峰值\n"; history.forEach(s => s.data.forEach((d,i)=>csv+=`${s.date},${s.note||''},${i+1},${d.avg.toFixed(2)},${d.peak.toFixed(2)}\n`)); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download=`VBT_${Date.now()}.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a); });
 
 setInterval(() => { if (document.getElementById('connectBtn').classList.contains('connected') && (Date.now() - lastPacketTime > 1500)) forceDisconnect(); }, 500);
-function forceDisconnect() { const btn = document.getElementById('connectBtn'); btn.classList.remove('connected'); btn.innerText = '連接感測器'; document.getElementById('status').innerText = '狀態：偵測到斷線。'; document.getElementById('rX').innerText = '0.0'; document.getElementById('rY').innerText = '0.0'; document.getElementById('rZ').innerText = '0.0'; document.getElementById('fpsDisplay').innerText = '0 Hz'; document.getElementById('dirIndicator').innerText = "待機"; document.getElementById('dirIndicator').className = "dir-idle"; }
+function forceDisconnect() { const btn = document.getElementById('connectBtn'); btn.classList.remove('connected'); btn.innerText = '連接感測器'; document.getElementById('status').innerText = '狀態：偵測到斷線。'; document.getElementById('fpsDisplay').innerText = '0 Hz'; document.getElementById('dirIndicator').innerText = "待機"; document.getElementById('dirIndicator').className = "dir-idle"; }
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
     try {
