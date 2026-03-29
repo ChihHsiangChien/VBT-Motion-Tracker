@@ -223,6 +223,29 @@ document.getElementById('saveBtn').addEventListener('click', () => {
     document.getElementById('setNote').value = ''; renderHistory(); alert('儲存成功');
 });
 
+document.getElementById('exportBtn').addEventListener('click', () => {
+    const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
+    if (history.length === 0) { alert('沒有資料可匯出'); return; }
+    
+    let csv = "\uFEFF日期,備註,次數,平均速度,峰值速度\n";
+    history.forEach(set => {
+        set.data.forEach((rep, index) => {
+            csv += `${set.date},${set.note || ''},${index+1},${rep.avg.toFixed(2)},${rep.peak.toFixed(2)}\n`;
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `VBT_訓練紀錄_${new Date().getTime()}.csv`;
+    document.body.appendChild(link); // 必須加入 body
+    link.click();
+    document.body.removeChild(link); // 隨即移除
+    URL.revokeObjectURL(url);
+    alert('檔案已準備下載');
+});
+
 document.getElementById('resetBtn').addEventListener('click', () => {
     currentSetData = []; document.getElementById('repsText').innerText = "0"; 
     document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--";
