@@ -1,0 +1,15 @@
+{
+  "name": "VBT Motion Tracker",
+  "short_name": "VBT",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#121212",
+  "description": "Professional VBT training with Nano 33 BLE",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3048/3048398.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

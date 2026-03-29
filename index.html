@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>VBT 專業監控</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg-color: #000000;
+    --card-bg: #1A1A1A;
+    --primary: #FF5200;
+    --success: #00FF00;
+    --info: #00E5FF;
+    --warning: #FFD600;
+    --text-main: #FFFFFF;
+    --text-dim: #888888;
+  }
+
+  body { font-family: sans-serif; text-align: center; background: var(--bg-color); color: var(--text-main); margin: 0; padding: 10px; }
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--card-bg); border-bottom: 3px solid var(--primary); margin-bottom: 10px; }
+  .title { margin: 0; font-size: 1.2rem; font-weight: 900; color: var(--primary); }
+  
+  .stat-card { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid #333; margin-bottom: 8px; }
+  .stat-label { font-size: 0.8rem; color: var(--text-dim); display: block; margin-bottom: 5px; }
+  .stat-val { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+
+  .sub-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chart-container { background: var(--card-bg); margin-top: 10px; padding: 10px; border-radius: 12px; height: 200px; }
+  
+  button { font-size: 1rem; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
+  #connectBtn { background: var(--primary); color: white; width: 100%; margin-bottom: 10px; }
+  #connectBtn.connected { background: #222; color: var(--success); }
+  #saveBtn { background: #333; color: var(--success); flex: 1; border: 1px solid #444; }
+  #exportBtn { background: #333; color: var(--info); flex: 1; border: 1px solid #444; }
+  #resetBtn { background: #333; color: white; font-size: 0.8rem; padding: 8px 12px; }
+
+  /* 歷史紀錄卡片樣式 */
+  .history-box { margin-top: 25px; text-align: left; }
+  .history-item { background: var(--card-bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+  .history-summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .history-detail { height: 0; overflow: hidden; transition: 0.3s; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px; }
+  .history-detail.open { height: auto; }
+  .history-mini-chart { width: 100%; height: 150px; }
+
+  #status { font-size: 0.7rem; color: #666; margin-bottom: 5px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <span class="title">VBT 專業監控</span>
+    <button id="resetBtn">新組數</button>
+  </div>
+
+  <button id="connectBtn">開始連線感測器</button>
+  <div id="status">尚未連線</div>
+
+  <div class="stat-card">
+    <span class="stat-label">完成次數</span>
+    <span id="repsText" class="stat-val" style="color: var(--warning);">0</span>
+  </div>
+
+  <div class="sub-stats">
+    <div class="stat-card">
+      <span class="stat-label">平均速度</span>
+      <span id="avgText" class="stat-val" style="color: var(--success);">--</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">峰值速度</span>
+      <span id="peakText" class="stat-val" style="color: var(--info);">--</span>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="liveChart"></canvas>
+  </div>
+
+  <div style="display:flex; gap:10px; margin-top:15px;">
+    <button id="saveBtn">儲存本組</button>
+    <button id="exportBtn">匯出 CSV</button>
+  </div>
+
+  <div class="history-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <span style="font-weight: bold; color: var(--warning); font-size: 1.1rem;">歷史訓練 (點擊查看圖表)</span>
+      <button id="clearBtn" style="background: none; color: #f44336; font-size: 0.8rem; padding: 0;">全部刪除</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+<script>
+const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
+const CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+
+let gravity = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [];
+let state = 0, startTime = 0, calibBuffer = [], isCalibrated = false;
+let currentSetData = [];
+
+// 即時圖表
+const liveCtx = document.getElementById('liveChart').getContext('2d');
+const liveChart = new Chart(liveCtx, {
+    type: 'line',
+    data: { labels: [], datasets: [
+        { label: 'Avg', data: [], borderColor: '#00FF00', borderWidth: 3, tension: 0.2, fill: false },
+        { label: 'Peak', data: [], borderColor: '#00E5FF', borderWidth: 3, tension: 0.2, fill: false }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#222' } }, x: { display: false } }, plugins: { legend: { display: false } } }
+});
+
+function updateVBT(rawZ) {
+    if (!isCalibrated) {
+        calibBuffer.push(rawZ);
+        if (calibBuffer.length >= 100) {
+            gravity = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length;
+            isCalibrated = true;
+            document.getElementById('status').innerText = '狀態：校準完成';
+        }
+        return null;
+    }
+    let netAccel = rawZ - gravity;
+    if (Math.abs(netAccel) < 0.08) {
+        netAccel = 0.0;
+        if (state === 0) { velocity = 0.0; gravity = gravity * 0.9 + rawZ * 0.1; return null; }
+    }
+    velocity += netAccel * 9.81 * 0.01;
+    if (state === 0 && Math.abs(netAccel) > 0.15) { state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; }
+    else if (state === 1 && velocity > 0.12) { state = 2; }
+    else if (state === 2) {
+        if (velocity > 0) { velocities.push(velocity); if (velocity > maxVelocity) maxVelocity = velocity; }
+        if ((velocity < 0.1 && velocities.length > 10) || (Date.now() - startTime > 6000)) state = 3;
+    } else if (state === 3) {
+        let res = null;
+        if (velocities.length > 15 && maxVelocity > 0.25) {
+            res = {avg: velocities.reduce((a, b) => a + b, 0) / velocities.length, peak: maxVelocity};
+        }
+        state = 0; velocity = 0.0; return res;
+    }
+    return null;
+}
+
+function addRepToUI(res) {
+    currentSetData.push(res);
+    document.getElementById('avgText').innerText = res.avg.toFixed(2);
+    document.getElementById('peakText').innerText = res.peak.toFixed(2);
+    document.getElementById('repsText').innerText = currentSetData.length;
+    
+    liveChart.data.labels.push(currentSetData.length);
+    liveChart.data.datasets[0].data.push(res.avg.toFixed(2));
+    liveChart.data.datasets[1].data.push(res.peak.toFixed(2));
+    liveChart.update();
+}
+
+function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
+    const container = document.getElementById('historyList');
+    container.innerHTML = '';
+
+    history.forEach((set, index) => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        const mcvSet = (set.data.reduce((a, b) => a + b.avg, 0) / set.reps).toFixed(2);
+        
+        item.innerHTML = `
+            <div class="history-summary" onclick="toggleHistory(${index})">
+                <div>
+                    <div style="font-weight:bold; font-size:0.9rem;">${set.date}</div>
+                    <div style="font-size:0.8rem; color:#888;">${set.reps} 下 | 平均 ${mcvSet} m/s</div>
+                </div>
+                <div style="color:var(--primary);">▼</div>
+            </div>
+            <div id="detail-${index}" class="history-detail">
+                <div class="history-mini-chart"><canvas id="chart-${index}"></canvas></div>
+            </div>
+        `;
+        container.appendChild(item);
+        
+        // 延遲一點點繪圖，確保 DOM 已生成
+        setTimeout(() => createHistoryChart(index, set.data), 10);
+    });
+}
+
+function createHistoryChart(index, data) {
+    const ctx = document.getElementById(`chart-${index}`).getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.map((_, i) => i + 1),
+            datasets: [
+                { label: 'Avg', data: data.map(d => d.avg.toFixed(2)), borderColor: '#00FF00', borderWidth: 2, pointRadius: 2, fill: false },
+                { label: 'Peak', data: data.map(d => d.peak.toFixed(2)), borderColor: '#00E5FF', borderWidth: 2, pointRadius: 2, fill: false }
+            ]
+        },
+        options: { 
+            responsive: true, maintainAspectRatio: false, 
+            scales: { y: { beginAtZero: true, grid: { color: '#222' } }, x: { display: true, ticks: { color: '#666' } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+window.toggleHistory = (index) => {
+    const detail = document.getElementById(`detail-${index}`);
+    detail.classList.toggle('open');
+};
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+    if (currentSetData.length === 0) return;
+    const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
+    history.unshift({ date: new Date().toLocaleString('zh-TW'), reps: currentSetData.length, data: currentSetData });
+    localStorage.setItem('vbt_history', JSON.stringify(history.slice(0, 30)));
+    renderHistory();
+    alert('訓練組已儲存。');
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => { if(confirm('確定刪除所有歷史？')) { localStorage.removeItem('vbt_history'); renderHistory(); } });
+
+document.getElementById('connectBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('connectBtn');
+    try {
+        const device = await navigator.bluetooth.requestDevice({ filters: [{ name: 'Nano33_Motion' }], optionalServices: [SERVICE_UUID] });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(CHAR_UUID);
+        await characteristic.startNotifications();
+        btn.classList.add('connected'); btn.innerText = '感測器已連線';
+        characteristic.addEventListener('characteristicvaluechanged', (e) => {
+            let res = updateVBT(parseFloat(new TextDecoder().decode(e.target.value).split(',')[2]));
+            if (res) addRepToUI(res);
+        });
+    } catch (e) { alert(e); }
+});
+
+renderHistory();
+</script>
+</body>
+</html>
