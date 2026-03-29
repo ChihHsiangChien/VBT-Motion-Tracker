@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root { --bg-color: #000000; --panel-bg: #FFFFFF; --primary: #FF5200; --success: #008000; --info: #0000FF; --warning: #FF8F00; --text-dark: #000000; --text-light: #FFFFFF; }
-  body { font-family: -apple-system, sans-serif; background: var(--bg-color); color: var(--text-light); margin: 0; padding: 10px; }
+  body { font-family: -apple-system, sans-serif; background: var(--bg-color); color: var(--text-light); margin: 0; padding: 10px; padding-bottom: 60px; }
   .header { display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 5px; }
   .title { font-size: 1.2rem; font-weight: 900; color: var(--primary); }
   .main-panel { background: var(--panel-bg); color: var(--text-dark); border-radius: 15px; padding: 20px; margin-bottom: 10px; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
@@ -24,6 +24,16 @@
   .action-box { background: #222; padding: 15px; border-radius: 12px; margin-top: 15px; }
   #setNote { width: 100%; padding: 12px; font-size: 1rem; border-radius: 8px; border: none; margin-bottom: 10px; }
   .history-item { background: #FFF; color: #000; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 8px solid var(--primary); text-align: left; }
+  
+  /* 數據心跳面板 - 固定在底部 */
+  .monitor-footer { 
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #111; border-top: 1px solid #333; 
+    padding: 8px 15px; font-family: monospace; font-size: 0.7rem; color: #00FF00; 
+    display: flex; justify-content: space-between; align-items: center; z-index: 1000;
+  }
+  .heartbeat { width: 8px; height: 8px; background: #00FF00; border-radius: 50%; display: inline-block; margin-right: 5px; opacity: 0; transition: opacity 0.1s; }
+  .heartbeat.blink { opacity: 1; }
 </style>
 </head>
 <body>
@@ -54,6 +64,12 @@
     <div id="historyList"></div>
   </div>
 
+  <!-- 數據心跳監控面板 -->
+  <div class="monitor-footer">
+    <div><span id="hb" class="heartbeat"></span>RAW: <span id="rX">0.0</span>, <span id="rY">0.0</span>, <span id="rZ">0.0</span></div>
+    <div id="fpsDisplay">-- Hz</div>
+  </div>
+
 <script>
 const SERVICE_UUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
 const CHAR_UUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
@@ -62,19 +78,35 @@ let gravityMag = 1.0, velocity = 0.0, maxVelocity = 0.0, velocities = [];
 let state = 0, startTime = 0, calibBuffer = [], isCalibrated = false;
 let currentSetData = [], lowVelocityCount = 0;
 
+// 效能與頻率監控
+let packetCount = 0, lastFpsTime = Date.now();
+
 const liveChart = new Chart(document.getElementById('liveChart').getContext('2d'), {
     type: 'line',
     data: { labels: [], datasets: [
-        { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false },
-        { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false }
+        { label: '平均', data: [], borderColor: '#008000', borderWidth: 4, tension: 0.2, fill: false, pointRadius: 4 },
+        { label: '峰值', data: [], borderColor: '#0000FF', borderWidth: 4, tension: 0.2, fill: false, pointRadius: 4 }
     ]},
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#EEE' } } }, plugins: { legend: { display: false } } }
 });
 
 function updateVBT(x, y, z) {
-    // 1. 計算合力向量 (Vector Magnitude)
-    let mag = Math.sqrt(x*x + y*y + z*z);
+    // 更新原始數據顯示與心跳
+    packetCount++;
+    document.getElementById('rX').innerText = x.toFixed(1);
+    document.getElementById('rY').innerText = y.toFixed(1);
+    document.getElementById('rZ').innerText = z.toFixed(1);
+    const hb = document.getElementById('hb');
+    hb.classList.add('blink'); setTimeout(() => hb.classList.remove('blink'), 50);
 
+    // 每秒更新一次 Hz
+    const now = Date.now();
+    if (now - lastFpsTime >= 1000) {
+        document.getElementById('fpsDisplay').innerText = packetCount + " Hz";
+        packetCount = 0; lastFpsTime = now;
+    }
+
+    let mag = Math.sqrt(x*x + y*y + z*z);
     if (!isCalibrated) {
         calibBuffer.push(mag);
         if (calibBuffer.length >= 100) {
@@ -85,22 +117,13 @@ function updateVBT(x, y, z) {
         return null;
     }
 
-    // 2. 扣除基準重力 (無論角度如何)
     let netAccel = mag - gravityMag;
-    
-    // 3. 噪聲過濾
     if (Math.abs(netAccel) < 0.07) {
         netAccel = 0.0;
-        if (state === 0) {
-            velocity = 0.0;
-            gravityMag = gravityMag * 0.98 + mag * 0.02; // 動態追蹤基準
-            return null;
-        }
+        if (state === 0) { velocity = 0.0; gravityMag = gravityMag * 0.98 + mag * 0.02; return null; }
     }
 
     velocity += netAccel * 9.81 * 0.01;
-
-    // 4. 狀態機 (向心偵測)
     if (state === 0 && netAccel > 0.12) {
         state = 1; startTime = Date.now(); velocities = []; maxVelocity = 0.0; lowVelocityCount = 0;
     } else if (state === 1 && velocity > 0.10) { state = 2; }
@@ -140,10 +163,10 @@ function renderHistory() {
             <div style="display:flex; justify-content:space-between;">
                 <div style="flex:1;" onclick="toggleHistory(${index})">
                     <div style="font-weight:900; color:var(--primary);">${set.date}</div>
-                    <div style="font-weight:bold; margin:5px 0;">${set.note || '無備註'}</div>
+                    <div style="font-size:1rem; font-weight:bold; margin:5px 0;">${set.note || '無備註'}</div>
                     <div>${set.reps} 下 | 平均 ${(set.data.reduce((a,b)=>a+b.avg,0)/set.reps).toFixed(2)} m/s</div>
                 </div>
-                <button onclick="deleteHistory(event, ${index})" style="background:none; color:red; font-weight:bold;">刪除</button>
+                <button onclick="deleteHistory(event, ${index})" style="background:none; color:red; font-weight:bold; padding:10px;">刪除</button>
             </div>
             <div id="detail-${index}" style="display:none; height:150px; margin-top:10px;"><canvas id="chart-${index}"></canvas></div>
         </div>
@@ -168,6 +191,15 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 document.getElementById('resetBtn').addEventListener('click', () => {
     currentSetData = []; document.getElementById('repsText').innerText = "0"; document.getElementById('avgText').innerText = "--"; document.getElementById('peakText').innerText = "--";
     liveChart.data.labels = []; liveChart.data.datasets.forEach(d => d.data = []); liveChart.update();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+    const history = JSON.parse(localStorage.getItem('vbt_history') || '[]');
+    if (history.length === 0) { alert('沒有數據可匯出'); return; }
+    let csv = "\uFEFF日期,備註,次數,平均,峰值\n";
+    history.forEach(s => s.data.forEach((d,i)=>csv+=`${s.date},${s.note||''},${i+1},${d.avg.toFixed(2)},${d.peak.toFixed(2)}\n`));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download=`VBT_${Date.now()}.csv`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 });
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
